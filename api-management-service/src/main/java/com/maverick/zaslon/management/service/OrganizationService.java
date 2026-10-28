@@ -1,0 +1,220 @@
+package com.maverick.zaslon.management.service;
+
+import com.maverick.zaslon.management.Entity.ManagementUser;
+import com.maverick.zaslon.management.Entity.Organization;
+import com.maverick.zaslon.management.Entity.OrganizationStatus;
+import com.maverick.zaslon.management.Entity.Role;
+import com.maverick.zaslon.management.Exception.ApiException;
+import com.maverick.zaslon.management.dto.requestDto.OrganizationRequest;
+import com.maverick.zaslon.management.dto.requestDto.OrganizationStatusRequest;
+import com.maverick.zaslon.management.dto.requestDto.TenantAdminRequest;
+import com.maverick.zaslon.management.dto.responseDto.OrganizationResponse;
+import com.maverick.zaslon.management.dto.responseDto.TenantAdminResponse;
+import com.maverick.zaslon.management.repository.ManagementUserRepository;
+import com.maverick.zaslon.management.repository.OrganizationRepository;
+import com.maverick.zaslon.management.repository.RoleRepository;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.util.RecordUtil;
+
+import javax.management.relation.RoleResult;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class OrganizationService {
+
+    private final OrganizationRepository organizationRepository;
+
+    private final ManagementUserRepository managementUserRepository;
+
+    private final RoleRepository roleRepository;
+
+    private final PasswordEncoder passwordEncoder;
+
+    public OrganizationService(OrganizationRepository organizationRepository, ManagementUserRepository managementUserRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
+        this.organizationRepository = organizationRepository;
+        this.managementUserRepository = managementUserRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+
+    }
+
+    @Transactional
+    public OrganizationResponse create(@Valid OrganizationRequest request) {
+
+        long startedAt = System.nanoTime();
+        checkUnique(request.getName(), request.getSlug(), null);
+
+        Organization organization = new Organization();
+        organization.setName(request.getName());
+        organization.setSlug(request.getSlug());
+        organization.setStatus(OrganizationStatus.PENDING);
+        organization.setCreatedAt(LocalDateTime.now());
+        organization.setUpdatedAt(LocalDateTime.now());
+
+
+        organizationRepository.save(organization);
+
+        return OrganizationResponse.from(organization);
+    }
+
+    //The outer condition checks whether the slug exists anywhere in the database.
+    private void checkUnique(String name, String slug, Long currentId) {
+        if (organizationRepository.existsByNameIgnoreCase(name)) {
+            Organization current = currentId == null ?
+                    null : organizationRepository.findById(currentId).orElse(null);
+
+
+            // The inner condition determines whether that existing slug belongs to another organization
+            // or to the organization you're currently updating.
+            // this means that, "name" is present in different organization and you are creating the same name in onboarding organization .
+            if (current == null || !current.getName().equalsIgnoreCase(name)) {
+                throw new ApiException(HttpStatus.CONFLICT, "Organization name already exists");
+            }
+        }
+
+        if (organizationRepository.existsBySlugIgnoreCase(slug)) {
+            Organization current = currentId == null ?
+                    null : organizationRepository.findById(currentId).orElse(null);
+
+            if (current == null || !current.getSlug().equalsIgnoreCase(slug)) {
+                throw new ApiException(HttpStatus.CONFLICT, "Organization slug already exists");
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrganizationResponse> findAll() {
+        List<OrganizationResponse> organizationResponses = new ArrayList<>();
+        for (Organization org : organizationRepository.findByStatusNot(OrganizationStatus.DELETED)) {
+            organizationResponses.add(OrganizationResponse.from(org));
+        }
+        return organizationResponses;
+    }
+
+    @Transactional
+    public OrganizationResponse findById(Long id) {
+        return OrganizationResponse.from(getOrganization(id));
+    }
+
+    private Organization getOrganization(Long id) {
+        return organizationRepository.findByIdAndStatusNot(id, OrganizationStatus.DELETED)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Organization not found"));
+    }
+
+    @Transactional
+    public OrganizationResponse update(Long id, @Valid OrganizationRequest request) {
+        long startedAt = System.nanoTime();
+
+        Organization organization = getOrganization(id);
+
+        checkUnique(request.getName(), request.getSlug(), id);
+
+        organization.setName(request.getName());
+        organization.setSlug(request.getSlug());
+        organization.setUpdatedAt(LocalDateTime.now());
+
+        // no need of save since @transactional is used.
+        return OrganizationResponse.from(organization);
+    }
+
+    @Transactional
+    public OrganizationResponse changeStatus(Long id, @Valid OrganizationStatusRequest request) {
+        long startedAt = System.nanoTime();
+
+        Organization organization = getOrganization(id);
+        if (request.getStatus().equals(OrganizationStatus.DELETED)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Organization status cannot be deleted. Use Soft delete");
+        }
+
+        organization.setStatus(request.getStatus());
+        organization.setUpdatedAt(LocalDateTime.now());
+
+        return OrganizationResponse.from(organization);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        long startedAt = System.nanoTime();
+
+        Organization organization = getOrganization(id);
+        organization.setStatus(OrganizationStatus.DELETED);
+        organization.setUpdatedAt(LocalDateTime.now());
+        organization.setDeletedAt(LocalDateTime.now());
+    }
+
+    @Transactional
+    public TenantAdminResponse createTenantAdmin(@Valid Long organizationId, TenantAdminRequest request) {
+
+        Long startedAt = System.nanoTime();
+
+        Organization organization = getOrganization(organizationId);
+
+        if (managementUserRepository.findByOrganizationId(organizationId).isPresent()) {
+            throw new ApiException(HttpStatus.CONFLICT, "This Organization already has a tenant admin");
+        }
+
+        if (managementUserRepository.existsByUsername(request.getUsername())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Username already exists");
+        }
+
+        Role role = roleRepository.findByName("TENANT_ADMIN").orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "TENANT_ADMIN role not found"));
+
+        ManagementUser managementUser = new ManagementUser();
+        managementUser.setOrganization(organization);
+        managementUser.setUsername(request.getUsername());
+        managementUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        managementUser.setRole(role);
+        managementUser.setEnabled(request.isEnabled());
+        managementUser.setCreatedAt(LocalDateTime.now());
+        managementUser.setUpdatedAt(LocalDateTime.now());
+
+        managementUserRepository.save(managementUser);
+
+        return TenantAdminResponse.from(managementUser);
+    }
+
+    public TenantAdminResponse getTenantAdmin(@Valid Long organizationId) {
+        return TenantAdminResponse.from(getTenantAdminEntity(organizationId));
+    }
+
+    private ManagementUser getTenantAdminEntity(Long organizationId) {
+        getOrganization(organizationId);
+        return managementUserRepository.findByOrganizationId(organizationId).
+                orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Organization not found"));
+    }
+
+
+    @Transactional
+    public TenantAdminResponse updateTenantAdmin(Long organizationId, @Valid TenantAdminRequest request) {
+        Long startedAt = System.nanoTime();
+
+        //get user by organization Id
+        ManagementUser user = getTenantAdminEntity(organizationId);
+
+        // if request and DB user is not same and give username already exist for other Tenant admin
+        if (!user.getUsername().equals(request.getUsername()) &&
+                managementUserRepository.existsByUsername(request.getUsername())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Username already exists");
+        }
+
+        user.setUsername(request.getUsername());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setEnabled(request.isEnabled());
+        user.setUpdatedAt(LocalDateTime.now());
+
+        return TenantAdminResponse.from(user);
+    }
+
+    public void deleteTenantAdmin(Long organizationId) {
+        long startedAt = System.nanoTime();
+
+        ManagementUser user = getTenantAdminEntity(organizationId);
+        managementUserRepository.delete(user);
+    }
+}
