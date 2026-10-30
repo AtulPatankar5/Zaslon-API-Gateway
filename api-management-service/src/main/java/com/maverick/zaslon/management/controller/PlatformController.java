@@ -56,6 +56,8 @@ public class PlatformController {
         return ResponseEntity.noContent().build();
     }
 
+
+    //Tenant CRUD Control from Platform login
     @PostMapping("/{organizationId}/tenant-admin")
     public ResponseEntity<TenantAdminResponse> createTenantAdmin(@PathVariable @Valid Long organizationId,
                                                                  @RequestBody TenantAdminRequest request) {

@@ -34,7 +34,8 @@ public class SecurityConfig {
                 sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).
                 authorizeHttpRequests(authorize ->
                         authorize
-                                .requestMatchers("/health", "/api/auth/login").permitAll()
+                                .requestMatchers("/", "/index.html", "/styles.css", "/app.js", "/favicon.ico",
+                                        "/health", "/api/auth/login").permitAll()
                                 //Only Platform admin can create organization and create Tenant Admin
                                 .requestMatchers("/api/platform/**").hasRole("PLATFORM_ADMIN")
                                 .requestMatchers("/api/tenant/**").hasRole("TENANT_ADMIN")

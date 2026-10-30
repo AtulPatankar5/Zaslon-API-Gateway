@@ -8,6 +8,7 @@ import com.maverick.zaslon.management.Exception.ApiException;
 import com.maverick.zaslon.management.dto.requestDto.OrganizationRequest;
 import com.maverick.zaslon.management.dto.requestDto.OrganizationStatusRequest;
 import com.maverick.zaslon.management.dto.requestDto.TenantAdminRequest;
+import com.maverick.zaslon.management.dto.requestDto.TenantOrganizationRequest;
 import com.maverick.zaslon.management.dto.responseDto.OrganizationResponse;
 import com.maverick.zaslon.management.dto.responseDto.TenantAdminResponse;
 import com.maverick.zaslon.management.repository.ManagementUserRepository;
@@ -36,11 +37,22 @@ public class OrganizationService {
 
     private final PasswordEncoder passwordEncoder;
 
-    public OrganizationService(OrganizationRepository organizationRepository, ManagementUserRepository managementUserRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
+    private final TenantContext tenantContext;
+
+    private final AuditService auditService;
+
+    public OrganizationService(OrganizationRepository organizationRepository,
+                               ManagementUserRepository managementUserRepository,
+                               RoleRepository roleRepository,
+                               PasswordEncoder passwordEncoder,
+                               TenantContext tenantContext,
+                               AuditService auditService) {
         this.organizationRepository = organizationRepository;
         this.managementUserRepository = managementUserRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.tenantContext = tenantContext;
+        this.auditService = auditService;
 
     }
 
@@ -59,6 +71,8 @@ public class OrganizationService {
 
 
         organizationRepository.save(organization);
+        auditService.record(organization, "CREATE_ORGANIZATION", "ORGANIZATION",
+                organization.getId().toString(), startedAt, "Organization created in Pending Status");
 
         return OrganizationResponse.from(organization);
     }
@@ -119,6 +133,10 @@ public class OrganizationService {
         organization.setSlug(request.getSlug());
         organization.setUpdatedAt(LocalDateTime.now());
 
+        auditService.record(organization, "UPDATE_ORGANIZATION",
+                "ORGANIZATION", id.toString(), startedAt,
+                "Organization name and slug updated");
+
         // no need of save since @transactional is used.
         return OrganizationResponse.from(organization);
     }
@@ -135,6 +153,10 @@ public class OrganizationService {
         organization.setStatus(request.getStatus());
         organization.setUpdatedAt(LocalDateTime.now());
 
+        auditService.record(organization, "CHANGE_ORGANIZATION_STATUS",
+                "ORGANIZATION", id.toString(),
+                startedAt, "Status changed to " + request.getStatus());
+
         return OrganizationResponse.from(organization);
     }
 
@@ -146,8 +168,14 @@ public class OrganizationService {
         organization.setStatus(OrganizationStatus.DELETED);
         organization.setUpdatedAt(LocalDateTime.now());
         organization.setDeletedAt(LocalDateTime.now());
+
+
+        auditService.record(organization, "DELETE_ORGANIZATION",
+                "ORGANIZATION", id.toString(), startedAt,
+                "Organization soft-deleted");
     }
 
+    // Action performed by Platform admin for tenant Admin
     @Transactional
     public TenantAdminResponse createTenantAdmin(@Valid Long organizationId, TenantAdminRequest request) {
 
@@ -176,17 +204,33 @@ public class OrganizationService {
 
         managementUserRepository.save(managementUser);
 
+        auditService.record(organization, "CREATE_TENANT_ADMIN",
+                "MANAGEMENT_USER", managementUser.getId().toString(),
+                startedAt, "Tenant administrator created");
+
         return TenantAdminResponse.from(managementUser);
     }
 
     public TenantAdminResponse getTenantAdmin(@Valid Long organizationId) {
         return TenantAdminResponse.from(getTenantAdminEntity(organizationId));
     }
+//
+//    private ManagementUser getTenantAdminEntity(Long organizationId) {
+//        getOrganization(organizationId);
+//        return managementUserRepository.findByOrganizationId(organizationId).
+//                orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Organization not found"));
+//    }
+
 
     private ManagementUser getTenantAdminEntity(Long organizationId) {
         getOrganization(organizationId);
-        return managementUserRepository.findByOrganizationId(organizationId).
-                orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Organization not found"));
+
+        return managementUserRepository.findByOrganizationId(organizationId)
+                .orElseThrow(() ->
+                        new ApiException(
+                                HttpStatus.NOT_FOUND,
+                                "Tenant admin not found for organization ID: " + organizationId
+                        ));
     }
 
 
@@ -208,13 +252,53 @@ public class OrganizationService {
         user.setEnabled(request.isEnabled());
         user.setUpdatedAt(LocalDateTime.now());
 
+        auditService.record(user.getOrganization(), "UPDATE_TENANT_ADMIN",
+                "MANAGEMENT_USER", user.getId().toString(), startedAt,
+                "Tenant administrator updated");
+
+
         return TenantAdminResponse.from(user);
     }
 
+    @Transactional
     public void deleteTenantAdmin(Long organizationId) {
         long startedAt = System.nanoTime();
 
         ManagementUser user = getTenantAdminEntity(organizationId);
+        auditService.record(user.getOrganization(), "DELETE_TENANT_ADMIN",
+                "MANAGEMENT_USER", user.getId().toString(), startedAt,
+                "Tenant administrator deleted");
+
         managementUserRepository.delete(user);
+    }
+
+    // Methods for tenant Admin
+    @Transactional(readOnly = true)
+    public OrganizationResponse getOwnOrganization() {
+        Organization organization = tenantContext.getOrganization();
+        return OrganizationResponse.from(organization);
+    }
+
+    @Transactional
+    public OrganizationResponse updateOwnOrganization(@Valid TenantOrganizationRequest request) {
+
+        long startedAt = System.nanoTime();
+        Organization organization = tenantContext.getOrganization();
+
+        if (!organization.getName().equalsIgnoreCase(request.getName()) &&
+                organizationRepository.existsByNameIgnoreCase(request.getName())
+        ) {
+            throw new ApiException(HttpStatus.CONFLICT, "Organization name already exists");
+        }
+        organization.setName(request.getName());
+        organization.setUpdatedAt(LocalDateTime.now());
+
+        auditService.record(organization, "UPDATE_OWN_ORGANIZATION",
+                "ORGANIZATION",
+                organization.getId().toString(),
+                startedAt,
+                "Tenant updated its organization name");
+
+        return OrganizationResponse.from(organization);
     }
 }
