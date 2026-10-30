@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
 //Only Platform admin can create organization and create Tenant Admin
 @RestController
 @RequestMapping("/api/platform/organizations")
@@ -56,17 +55,16 @@ public class PlatformController {
         return ResponseEntity.noContent().build();
     }
 
-
     //Tenant CRUD Control from Platform login
     @PostMapping("/{organizationId}/tenant-admin")
-    public ResponseEntity<TenantAdminResponse> createTenantAdmin(@PathVariable @Valid Long organizationId,
-                                                                 @RequestBody TenantAdminRequest request) {
+    public ResponseEntity<TenantAdminResponse> createTenantAdmin(@PathVariable Long organizationId,
+                                                                 @Valid @RequestBody TenantAdminRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(organizationService.createTenantAdmin(organizationId, request));
     }
 
     @GetMapping("/{organizationId}/tenant-admin")
-    public ResponseEntity<TenantAdminResponse> getTenantAdmin(@PathVariable @Valid Long organizationId) {
+    public ResponseEntity<TenantAdminResponse> getTenantAdmin(@PathVariable Long organizationId) {
         return ResponseEntity.ok(organizationService.getTenantAdmin(organizationId));
     }
 
@@ -81,6 +79,4 @@ public class PlatformController {
         organizationService.deleteTenantAdmin(organizationId);
         return ResponseEntity.noContent().build();
     }
-
-
 }

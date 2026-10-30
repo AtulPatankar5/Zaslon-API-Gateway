@@ -140,6 +140,7 @@
                             <tr>
                                 <th>Organization</th>
                                 <th>Slug</th>
+                                <th>Administrator</th>
                                 <th>Status</th>
                                 <th>Created</th>
                                 <th class="align-right">Actions</th>
@@ -270,6 +271,7 @@
                 <p id="tenantAdminOrganization" class="muted"></p></div>
             <button class="icon-button close-dialog" type="button" aria-label="Close">×</button>
         </div>
+        <div id="tenantAdminNotice" class="modal-notice hidden"></div>
         <input id="tenantAdminOrganizationId" type="hidden">
         <input id="tenantAdminExists" type="hidden" value="false">
         <div class="form-grid">
@@ -288,7 +290,7 @@
             </button>
             <span></span>
             <button class="button button-quiet close-dialog" type="button">Cancel</button>
-            <button class="button button-primary" type="submit">Save administrator</button>
+            <button id="tenantAdminSubmitButton" class="button button-primary" type="submit">Save administrator</button>
         </div>
     </form>
 </dialog>

@@ -61,9 +61,11 @@ public class RouteService {
         route.setOrganization(organization);
         route.setConfigurationVersion(1L);
         route.setCreatedAt(LocalDateTime.now());
+        //sets all the route parameters
         apply(route, request);
         apiRouteRepository.save(route);
 
+        //Saves the version of route whenever created
         saveVersion(route, "CREATED");
         auditService.record(organization, "CREATE_ROUTE",
                 "API_ROUTE", route.getRouteId(), startedAt,

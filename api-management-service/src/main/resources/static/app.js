@@ -34,7 +34,7 @@
             "organizationDialog", "organizationForm", "organizationDialogTitle", "organizationId", "organizationName",
             "organizationSlug", "tenantAdminDialog", "tenantAdminForm", "tenantAdminDialogTitle",
             "tenantAdminOrganization", "tenantAdminOrganizationId", "tenantAdminExists", "tenantAdminUsername",
-            "tenantAdminPassword", "tenantAdminEnabled", "deleteTenantAdminButton", "routeDialog", "routeForm",
+            "tenantAdminPassword", "tenantAdminEnabled", "deleteTenantAdminButton", "tenantAdminNotice", "tenantAdminSubmitButton", "routeDialog", "routeForm",
             "routeDialogTitle", "routePk", "routeId", "routeName", "routePathPattern", "routeTargetBaseUrl",
             "routeTargetPathPrefix", "routeRequestsPerMinute", "routeResponseTimeout", "routeAllowedMethods",
             "routeIdempotency", "routeActive", "addHeaderRuleButton", "headerRulesContainer", "versionsDialog",
@@ -328,14 +328,31 @@
         });
 
         elements.organizationsTableBody.innerHTML = organizations.map(function (organization) {
+            var hasAdmin = Boolean(organization.adminUsername);
+            var adminCell = hasAdmin ?
+                '<td><div class="admin-pill has-admin" title="Tenant Admin: ' + escapeAttribute(organization.adminUsername) + '">' +
+                '<span class="admin-dot ' + (organization.adminEnabled ? 'online' : 'offline') + '"></span>' +
+                '<span class="admin-name">@' + escapeHtml(organization.adminUsername) + '</span>' +
+                (organization.adminEnabled ? '' : '<small class="chip-disabled">Disabled</small>') +
+                '</div></td>' :
+                '<td><div class="admin-pill no-admin">' +
+                '<span class="badge-missing">No admin</span>' +
+                '<button class="button-link-accent" type="button" data-action="admin" data-id="' + organization.id + '">+ Add</button>' +
+                '</div></td>';
+
+            var adminActionButton = hasAdmin ?
+                '<button class="row-action" data-action="admin" data-id="' + organization.id + '" title="Edit tenant administrator">Admin</button>' :
+                '<button class="row-action row-action-accent" data-action="admin" data-id="' + organization.id + '" title="Add tenant administrator to this organization">+ Add Admin</button>';
+
             return '<tr>' +
                 '<td><div class="cell-primary"><strong>' + escapeHtml(organization.name) + '</strong><small>ID ' + organization.id + '</small></div></td>' +
                 '<td><span class="path-code">/' + escapeHtml(organization.slug) + '</span></td>' +
+                adminCell +
                 '<td><select class="status-select" data-action="status" data-id="' + organization.id + '" aria-label="Status for ' + escapeAttribute(organization.name) + '">' +
                 statusOptions(organization.status) + '</select></td>' +
                 '<td class="cell-secondary">' + formatDate(organization.createdAt) + '</td>' +
                 '<td class="align-right"><div class="row-actions">' +
-                '<button class="row-action" data-action="admin" data-id="' + organization.id + '">Admin</button>' +
+                adminActionButton +
                 '<button class="row-action" data-action="edit" data-id="' + organization.id + '">Edit</button>' +
                 '<button class="row-action danger" data-action="delete" data-id="' + organization.id + '">Delete</button>' +
                 '</div></td></tr>';
@@ -440,6 +457,10 @@
         elements.tenantAdminEnabled.checked = true;
         elements.tenantAdminExists.value = "false";
         elements.deleteTenantAdminButton.classList.add("hidden");
+        if (elements.tenantAdminNotice) {
+            elements.tenantAdminNotice.className = "modal-notice hidden";
+            elements.tenantAdminNotice.innerHTML = "";
+        }
         elements.tenantAdminDialog.showModal();
 
         try {
@@ -451,9 +472,36 @@
                 elements.tenantAdminUsername.value = admin.username;
                 elements.tenantAdminEnabled.checked = admin.enabled;
                 elements.deleteTenantAdminButton.classList.remove("hidden");
-                elements.tenantAdminPassword.placeholder = "Enter a new password";
+                elements.tenantAdminPassword.required = false;
+                elements.tenantAdminPassword.value = "";
+                elements.tenantAdminPassword.placeholder = "Leave blank to keep current password";
+                elements.tenantAdminDialogTitle.textContent = "Manage tenant administrator";
+                if (elements.tenantAdminSubmitButton) {
+                    elements.tenantAdminSubmitButton.textContent = "Save changes";
+                }
+                if (elements.tenantAdminNotice) {
+                    elements.tenantAdminNotice.className = "modal-notice notice-info";
+                    elements.tenantAdminNotice.innerHTML = '<strong>Configured Admin:</strong> @' + escapeHtml(admin.username) +
+                        (admin.enabled ? ' <span class="badge-status-on">Active</span>' : ' <span class="badge-status-off">Disabled</span>') +
+                        '. You can update credentials or remove access below.';
+                }
             } else {
+                elements.tenantAdminExists.value = "false";
+                elements.tenantAdminUsername.value = organization.slug ? organization.slug + "-admin" : "";
+                elements.tenantAdminEnabled.checked = true;
+                elements.deleteTenantAdminButton.classList.add("hidden");
+                elements.tenantAdminPassword.required = true;
+                elements.tenantAdminPassword.value = "";
                 elements.tenantAdminPassword.placeholder = "Minimum 8 characters";
+                elements.tenantAdminDialogTitle.textContent = "Add tenant administrator";
+                if (elements.tenantAdminSubmitButton) {
+                    elements.tenantAdminSubmitButton.textContent = "Create administrator";
+                }
+                if (elements.tenantAdminNotice) {
+                    elements.tenantAdminNotice.className = "modal-notice notice-warning";
+                    elements.tenantAdminNotice.innerHTML = '<strong>No Admin Configured:</strong> <em>' + escapeHtml(organization.name) +
+                        '</em> currently has no tenant administrator. Create an account below so they can log in to manage routes for this organization.';
+                }
             }
             elements.tenantAdminUsername.focus();
         } catch (error) {
@@ -466,24 +514,33 @@
         event.preventDefault();
         var organizationId = elements.tenantAdminOrganizationId.value;
         var exists = elements.tenantAdminExists.value === "true";
-        var submit = event.submitter;
+        var submit = event.submitter || elements.tenantAdminSubmitButton;
+        var payload = {
+            username: elements.tenantAdminUsername.value.trim(),
+            enabled: elements.tenantAdminEnabled.checked
+        };
+        var pwd = elements.tenantAdminPassword.value;
+        if (pwd && pwd.trim().length > 0) {
+            payload.password = pwd;
+        } else if (!exists) {
+            toast("Password required", "Please enter a password of at least 8 characters.", true);
+            return;
+        }
+
         setButtonLoading(submit, true, "Saving...");
         try {
             await api("/api/platform/organizations/" + organizationId + "/tenant-admin", {
                 method: exists ? "PUT" : "POST",
-                body: {
-                    username: elements.tenantAdminUsername.value.trim(),
-                    password: elements.tenantAdminPassword.value,
-                    enabled: elements.tenantAdminEnabled.checked
-                }
+                body: payload
             });
             elements.tenantAdminDialog.close();
+            await loadOrganizations();
             toast(exists ? "Administrator updated" : "Administrator created",
-                elements.tenantAdminUsername.value.trim() + " can use the tenant panel.");
+                elements.tenantAdminUsername.value.trim() + " can now log in to manage this organization.");
         } catch (error) {
             toast("Could not save administrator", error.message, true);
         } finally {
-            setButtonLoading(submit, false, "Save administrator");
+            setButtonLoading(submit, false, exists ? "Save changes" : "Create administrator");
         }
     }
 
@@ -495,6 +552,7 @@
         try {
             await api("/api/platform/organizations/" + organizationId + "/tenant-admin", {method: "DELETE"});
             elements.tenantAdminDialog.close();
+            await loadOrganizations();
             toast("Administrator deleted", "The management account has been removed.");
         } catch (error) {
             toast("Could not delete administrator", error.message, true);

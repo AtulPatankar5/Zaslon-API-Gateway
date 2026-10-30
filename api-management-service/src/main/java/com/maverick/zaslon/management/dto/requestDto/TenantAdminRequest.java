@@ -12,8 +12,7 @@ public class TenantAdminRequest {
     @Size(min = 1, max = 100)
     private String username;
 
-    @NotBlank
-    @Size(min = 1, max = 100)
+    @Size(max = 100)
     private String password;
 
     private boolean enabled = true;
