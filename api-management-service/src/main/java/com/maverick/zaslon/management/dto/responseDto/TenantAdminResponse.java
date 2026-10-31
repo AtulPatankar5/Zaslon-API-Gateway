@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.dto.responseDto;
 
-import com.maverick.zaslon.management.Entity.ManagementUser;
+import com.maverick.zaslon.management.entity.ManagementUser;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

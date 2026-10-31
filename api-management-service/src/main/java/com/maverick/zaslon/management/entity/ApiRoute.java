@@ -1,7 +1,6 @@
-package com.maverick.zaslon.management.Entity;
+package com.maverick.zaslon.management.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.Valid;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

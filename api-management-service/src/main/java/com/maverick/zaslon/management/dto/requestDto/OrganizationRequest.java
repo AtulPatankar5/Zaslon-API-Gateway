@@ -1,8 +1,5 @@
 package com.maverick.zaslon.management.dto.requestDto;
 
-import com.maverick.zaslon.management.Entity.OrganizationStatus;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;

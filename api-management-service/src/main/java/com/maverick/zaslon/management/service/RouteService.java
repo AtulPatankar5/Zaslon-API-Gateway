@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.service;
 
-import com.maverick.zaslon.management.Entity.*;
+import com.maverick.zaslon.management.entity.*;
 import com.maverick.zaslon.management.Exception.ApiException;
 import com.maverick.zaslon.management.dto.requestDto.HeaderRuleRequest;
 import com.maverick.zaslon.management.dto.requestDto.RouteRequest;
@@ -8,6 +8,7 @@ import com.maverick.zaslon.management.dto.requestDto.RouteStatusRequest;
 import com.maverick.zaslon.management.dto.responseDto.AuditRecordResponse;
 import com.maverick.zaslon.management.dto.responseDto.RouteResponse;
 import com.maverick.zaslon.management.dto.responseDto.RouteVersionResponse;
+import com.maverick.zaslon.management.events.GatewayConfigurationEventService;
 import com.maverick.zaslon.management.repository.ApiRouteRepository;
 import com.maverick.zaslon.management.repository.AuditRecordRepository;
 import com.maverick.zaslon.management.repository.RouteConfigurationVersionRepository;
@@ -31,20 +32,16 @@ public class RouteService {
     private final RouteConfigurationVersionRepository versionRepository;
     private final AuditService auditService;
     private final AuditRecordRepository auditRecordRepository;
+    private final GatewayConfigurationEventService gatewayConfigurationEventService;
 
-    public RouteService(ApiRouteRepository apiRouteRepository,
-                        TenantContext tenantContext,
-                        ObjectMapper objectMapper,
-                        RouteConfigurationVersionRepository routeConfigurationVersionRepository,
-                        AuditService auditService,
-                        AuditRecordRepository auditRecordRepository
-    ) {
+    public RouteService(ApiRouteRepository apiRouteRepository, TenantContext tenantContext, ObjectMapper objectMapper, RouteConfigurationVersionRepository routeConfigurationVersionRepository, AuditService auditService, AuditRecordRepository auditRecordRepository, GatewayConfigurationEventService gatewayConfigurationEventService) {
         this.apiRouteRepository = apiRouteRepository;
         this.tenantContext = tenantContext;
         this.objectMapper = objectMapper;
         this.versionRepository = routeConfigurationVersionRepository;
         this.auditService = auditService;
         this.auditRecordRepository = auditRecordRepository;
+        this.gatewayConfigurationEventService = gatewayConfigurationEventService;
     }
 
     @Transactional
@@ -67,9 +64,11 @@ public class RouteService {
 
         //Saves the version of route whenever created
         saveVersion(route, "CREATED");
-        auditService.record(organization, "CREATE_ROUTE",
-                "API_ROUTE", route.getRouteId(), startedAt,
-                "Route configuration version 1 created");
+        auditService.record(organization, "CREATE_ROUTE", "API_ROUTE", route.getRouteId(), startedAt, "Route configuration version 1 created");
+
+        //save local event
+        gatewayConfigurationEventService.publish("CREATED", organization.getId(), route.getRouteId(), route.getConfigurationVersion());
+
         return RouteResponse.from(route);
 
     }
@@ -105,10 +104,11 @@ public class RouteService {
 
         saveVersion(route, "UPDATED");
 
-        auditService.record(organization, "UPDATE_ROUTE", "API_ROUTE",
-                route.getRouteId(), startedAt, "Route configuration version " +
-                        route.getConfigurationVersion() + " created");
+        auditService.record(organization, "UPDATE_ROUTE", "API_ROUTE", route.getRouteId(), startedAt, "Route configuration version " + route.getConfigurationVersion() + " created");
 
+
+        //Trigger local event for kafka
+        gatewayConfigurationEventService.publish("UPDATED", organization.getId(), route.getRouteId(), route.getConfigurationVersion());
         return RouteResponse.from(route);
     }
 
@@ -123,9 +123,10 @@ public class RouteService {
 
         saveVersion(route, "DELETED");
 
-        auditService.record(organization, "DELETE_ROUTE", "API_ROUTE", route.getRouteId(), startedAt,
-                "Final configuration saved as version " + route.getConfigurationVersion());
+        auditService.record(organization, "DELETE_ROUTE", "API_ROUTE", route.getRouteId(), startedAt, "Final configuration saved as version " + route.getConfigurationVersion());
 
+        //Trigger local event for kafka
+        gatewayConfigurationEventService.publish("DELETED", organization.getId(), route.getRouteId(), route.getConfigurationVersion());
 
         apiRouteRepository.delete(route);
     }
@@ -146,8 +147,10 @@ public class RouteService {
         saveVersion(route, changeType);
 
 
-        auditService.record(organization, "CHANGE_STATUS", "API_ROUTE", route.getRouteId(), startedAt,
-                "Route configuration version " + route.getConfigurationVersion() + " created");
+        auditService.record(organization, "CHANGE_STATUS", "API_ROUTE", route.getRouteId(), startedAt, "Route configuration version " + route.getConfigurationVersion() + " created");
+
+        //Trigger local event for kafka
+        gatewayConfigurationEventService.publish(changeType, organization.getId(), route.getRouteId(), route.getConfigurationVersion());
 
         return RouteResponse.from(route);
     }
@@ -156,14 +159,11 @@ public class RouteService {
     // gateway Methods
     @Transactional(readOnly = true)
     public List<RouteResponse> findAllActiveForGateway() {
-        return toResponses(
-                apiRouteRepository.findAllByActiveTrueAndOrganizationStatus(OrganizationStatus.ACTIVE)
-        );
+        return toResponses(apiRouteRepository.findAllByActiveTrueAndOrganizationStatus(OrganizationStatus.ACTIVE));
     }
 
     private ApiRoute getOwnedRoute(Long id, Long organizationId) {
-        return apiRouteRepository.findByIdAndOrganizationId(id, organizationId).
-                orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Route not found"));
+        return apiRouteRepository.findByIdAndOrganizationId(id, organizationId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Route not found"));
     }
 
 
@@ -271,8 +271,7 @@ public class RouteService {
         Organization organization = tenantContext.getOrganization();
         List<RouteVersionResponse> response = new ArrayList<>();
 
-        List<RouteConfigurationVersion> versions = versionRepository.
-                findAllByOrganizationIdAndRouteIdOrderByVersionNumberDesc(organization.getId(), routeId);
+        List<RouteConfigurationVersion> versions = versionRepository.findAllByOrganizationIdAndRouteIdOrderByVersionNumberDesc(organization.getId(), routeId);
 
         for (RouteConfigurationVersion version : versions) {
             response.add(RouteVersionResponse.from(version));

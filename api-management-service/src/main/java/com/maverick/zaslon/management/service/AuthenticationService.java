@@ -1,7 +1,7 @@
     package com.maverick.zaslon.management.service;
 
-    import com.maverick.zaslon.management.Entity.ManagementUser;
-    import com.maverick.zaslon.management.Entity.OrganizationStatus;
+    import com.maverick.zaslon.management.entity.ManagementUser;
+    import com.maverick.zaslon.management.entity.OrganizationStatus;
     import com.maverick.zaslon.management.Exception.ApiException;
     import com.maverick.zaslon.management.dto.requestDto.LoginRequest;
     import com.maverick.zaslon.management.dto.responseDto.LoginResponse;

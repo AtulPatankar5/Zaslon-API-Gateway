@@ -1,4 +1,4 @@
-package com.maverick.zaslon.management.Entity;
+package com.maverick.zaslon.management.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

@@ -1,8 +1,7 @@
 package com.maverick.zaslon.management.dto.responseDto;
 
-import com.maverick.zaslon.management.Entity.Organization;
-import com.maverick.zaslon.management.Entity.OrganizationStatus;
-import jakarta.persistence.*;
+import com.maverick.zaslon.management.entity.Organization;
+import com.maverick.zaslon.management.entity.OrganizationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

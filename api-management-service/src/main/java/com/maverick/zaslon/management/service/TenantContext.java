@@ -1,13 +1,12 @@
 package com.maverick.zaslon.management.service;
 
-import com.maverick.zaslon.management.Entity.Organization;
-import com.maverick.zaslon.management.Entity.OrganizationStatus;
+import com.maverick.zaslon.management.entity.Organization;
+import com.maverick.zaslon.management.entity.OrganizationStatus;
 import com.maverick.zaslon.management.Exception.ApiException;
 import com.maverick.zaslon.management.repository.OrganizationRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 

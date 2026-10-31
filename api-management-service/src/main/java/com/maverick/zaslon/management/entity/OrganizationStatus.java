@@ -1,4 +1,4 @@
-package com.maverick.zaslon.management.Entity;
+package com.maverick.zaslon.management.entity;
 
 public enum OrganizationStatus {
     PENDING,

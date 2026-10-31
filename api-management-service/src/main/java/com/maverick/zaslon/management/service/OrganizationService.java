@@ -1,9 +1,9 @@
 package com.maverick.zaslon.management.service;
 
-import com.maverick.zaslon.management.Entity.ManagementUser;
-import com.maverick.zaslon.management.Entity.Organization;
-import com.maverick.zaslon.management.Entity.OrganizationStatus;
-import com.maverick.zaslon.management.Entity.Role;
+import com.maverick.zaslon.management.entity.ManagementUser;
+import com.maverick.zaslon.management.entity.Organization;
+import com.maverick.zaslon.management.entity.OrganizationStatus;
+import com.maverick.zaslon.management.entity.Role;
 import com.maverick.zaslon.management.Exception.ApiException;
 import com.maverick.zaslon.management.dto.requestDto.OrganizationRequest;
 import com.maverick.zaslon.management.dto.requestDto.OrganizationStatusRequest;
@@ -11,6 +11,7 @@ import com.maverick.zaslon.management.dto.requestDto.TenantAdminRequest;
 import com.maverick.zaslon.management.dto.requestDto.TenantOrganizationRequest;
 import com.maverick.zaslon.management.dto.responseDto.OrganizationResponse;
 import com.maverick.zaslon.management.dto.responseDto.TenantAdminResponse;
+import com.maverick.zaslon.management.events.GatewayConfigurationEventService;
 import com.maverick.zaslon.management.repository.ManagementUserRepository;
 import com.maverick.zaslon.management.repository.OrganizationRepository;
 import com.maverick.zaslon.management.repository.RoleRepository;
@@ -23,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class OrganizationService {
@@ -34,19 +34,23 @@ public class OrganizationService {
     private final PasswordEncoder passwordEncoder;
     private final TenantContext tenantContext;
     private final AuditService auditService;
+    private final GatewayConfigurationEventService gatewayConfigurationEventService;
 
     public OrganizationService(OrganizationRepository organizationRepository,
-            ManagementUserRepository managementUserRepository,
-            RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder,
-            TenantContext tenantContext,
-            AuditService auditService) {
+                               ManagementUserRepository managementUserRepository,
+                               RoleRepository roleRepository,
+                               PasswordEncoder passwordEncoder,
+                               TenantContext tenantContext,
+                               AuditService auditService,
+                               GatewayConfigurationEventService gatewayConfigurationEventService
+    ) {
         this.organizationRepository = organizationRepository;
         this.managementUserRepository = managementUserRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.tenantContext = tenantContext;
         this.auditService = auditService;
+        this.gatewayConfigurationEventService = gatewayConfigurationEventService;
     }
 
     @Transactional
@@ -127,6 +131,10 @@ public class OrganizationService {
                 "ORGANIZATION", id.toString(), startedAt,
                 "Organization name and slug updated");
 
+
+        //Trigger local event for kafka
+        gatewayConfigurationEventService.publish("UPDATE_ORGANIZATION", organization.getId(), null, null);
+
         // no need of save since @transactional is used.
         return OrganizationResponse.from(organization);
     }
@@ -147,6 +155,9 @@ public class OrganizationService {
                 "ORGANIZATION", id.toString(),
                 startedAt, "Status changed to " + request.getStatus());
 
+        //Trigger local event for kafka
+        gatewayConfigurationEventService.publish("ORGANIZATION_" + request.getStatus(), organization.getId(), null, null);
+
         return OrganizationResponse.from(organization);
     }
 
@@ -162,6 +173,10 @@ public class OrganizationService {
         auditService.record(organization, "DELETE_ORGANIZATION",
                 "ORGANIZATION", id.toString(), startedAt,
                 "Organization soft-deleted");
+
+        //Trigger local event for kafka
+        gatewayConfigurationEventService.publish("UPDATE_DELETED", organization.getId(), null, null);
+
     }
 
     // Action performed by Platform admin for tenant Admin

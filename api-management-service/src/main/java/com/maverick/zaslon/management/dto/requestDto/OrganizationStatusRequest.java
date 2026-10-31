@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.dto.requestDto;
 
-import com.maverick.zaslon.management.Entity.OrganizationStatus;
+import com.maverick.zaslon.management.entity.OrganizationStatus;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;

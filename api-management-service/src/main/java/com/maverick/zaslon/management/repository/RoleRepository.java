@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.repository;
 
-import com.maverick.zaslon.management.Entity.Role;
+import com.maverick.zaslon.management.entity.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

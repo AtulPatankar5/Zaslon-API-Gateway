@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.dto.responseDto;
 
-import com.maverick.zaslon.management.Entity.ControlPlaneAuditRecord;
+import com.maverick.zaslon.management.entity.ControlPlaneAuditRecord;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

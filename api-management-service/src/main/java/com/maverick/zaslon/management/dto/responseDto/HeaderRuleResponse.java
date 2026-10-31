@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.dto.responseDto;
 
-import com.maverick.zaslon.management.Entity.RouteHeaderRule;
+import com.maverick.zaslon.management.entity.RouteHeaderRule;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

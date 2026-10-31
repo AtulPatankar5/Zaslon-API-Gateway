@@ -1,7 +1,7 @@
 package com.maverick.zaslon.management.service;
 
-import com.maverick.zaslon.management.Entity.ControlPlaneAuditRecord;
-import com.maverick.zaslon.management.Entity.Organization;
+import com.maverick.zaslon.management.entity.ControlPlaneAuditRecord;
+import com.maverick.zaslon.management.entity.Organization;
 import com.maverick.zaslon.management.repository.ControlPlaneAuditRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;

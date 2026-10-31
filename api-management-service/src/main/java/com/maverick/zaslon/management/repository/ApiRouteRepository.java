@@ -1,7 +1,7 @@
 package com.maverick.zaslon.management.repository;
 
-import com.maverick.zaslon.management.Entity.ApiRoute;
-import com.maverick.zaslon.management.Entity.OrganizationStatus;
+import com.maverick.zaslon.management.entity.ApiRoute;
+import com.maverick.zaslon.management.entity.OrganizationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

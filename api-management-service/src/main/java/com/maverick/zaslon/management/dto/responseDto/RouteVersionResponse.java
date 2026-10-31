@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.dto.responseDto;
 
-import com.maverick.zaslon.management.Entity.RouteConfigurationVersion;
+import com.maverick.zaslon.management.entity.RouteConfigurationVersion;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

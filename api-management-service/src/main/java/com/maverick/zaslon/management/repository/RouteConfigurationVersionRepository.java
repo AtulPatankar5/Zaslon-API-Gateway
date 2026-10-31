@@ -1,6 +1,6 @@
 package com.maverick.zaslon.management.repository;
 
-import com.maverick.zaslon.management.Entity.RouteConfigurationVersion;
+import com.maverick.zaslon.management.entity.RouteConfigurationVersion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
