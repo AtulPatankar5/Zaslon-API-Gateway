@@ -11,4 +11,18 @@ public class HealthResponse {
     private String serviceName;
     private String serviceDescription;
     private String appStatus;
+
+    @Getter
+    @AllArgsConstructor
+    @Setter
+    public static class HeaderRules {
+
+
+        private Long id;
+        private String direction;
+        private String action;
+        private String headerName;
+        private String headerValue;
+
+    }
 }

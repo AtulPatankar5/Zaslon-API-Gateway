@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/gateway")
+@RequestMapping("/api/gateway/routes")
 public class GatewayConfigurationController {
 
     private final RouteService routeService;

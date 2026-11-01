@@ -8,7 +8,7 @@ import org.springframework.kafka.config.TopicBuilder;
 
 @Configuration
 public class KafkaConfig {
-    
+
     @Bean
     public NewTopic gatewayConfigurationTopic(
             @Value("${gateway.kafka.configuration-topic}") String topic) {
